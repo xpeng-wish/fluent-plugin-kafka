@@ -278,6 +278,8 @@ class Fluent::KafkaGroupInput < Fluent::Input
                   record[k] = v
                 }
               end
+              tag = "td.wishpost.".concat(record["__table__"])
+              # 强制修改 tag 名
               es.add(record_time, record)
             rescue => e
               log.warn "parser error in #{batch.topic}/#{batch.partition}", :error => e.to_s, :value => msg.value, :offset => msg.offset
