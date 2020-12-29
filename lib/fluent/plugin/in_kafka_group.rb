@@ -278,8 +278,9 @@ class Fluent::KafkaGroupInput < Fluent::Input
                   record[k] = v
                 }
               end
-              tag = "td.wishpost.".concat(record["__table__"])
-              # 强制修改 tag 名
+              # 强制修改 tag 名 命名规则是 consumer_group 是 treasureData 的 database 名称
+              # record["__table__"] 是 treasureData 的表名
+              tag = "td.#{consumer_group}.#{record["__table__"]}"
               es.add(record_time, record)
             rescue => e
               log.warn "parser error in #{batch.topic}/#{batch.partition}", :error => e.to_s, :value => msg.value, :offset => msg.offset
