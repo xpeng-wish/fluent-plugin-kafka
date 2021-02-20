@@ -248,13 +248,13 @@ class Fluent::KafkaGroupInput < Fluent::Input
     while @consumer
       begin
         @consumer.each_batch(@fetch_opts) { |batch|
-          es = Fluent::MultiEventStream.new
           tag = batch.topic
           tag = @add_prefix + "." + tag if @add_prefix
           tag = tag + "." + @add_suffix if @add_suffix
 
           batch.messages.each { |msg|
             begin
+              es = Fluent::MultiEventStream.new
               record = @parser_proc.call(msg)
               case @time_source
               when :kafka
@@ -278,19 +278,21 @@ class Fluent::KafkaGroupInput < Fluent::Input
                   record[k] = v
                 }
               end
-              # 强制修改 tag 名 命名规则是 consumer_group 是 treasureData 的 database 名称
-              # record["__table__"] 是 treasureData 的表名
-              tag = "td.#{consumer_group}.#{record["__table__"]}"
+              # replace tag filed for sending data to treasureData
+              # name rule is kafka consumer_group <<---->> database name of treasureData
+              # record["__project__"] <<---->> database name
+              # record["__table__"] <<---->> table name of database
+              # "__table__" and "__project__" are added into record by td-client in Python services
+              tag = "td.#{record["__project__"]}.#{record["__table__"]}"
+              # in order to keep original data format, we need to delete "__project__" field
+              record.delete("__project__")
               es.add(record_time, record)
+              emit_events(tag, es)
             rescue => e
               log.warn "parser error in #{batch.topic}/#{batch.partition}", :error => e.to_s, :value => msg.value, :offset => msg.offset
               log.debug_backtrace
             end
           }
-
-          unless es.empty?
-            emit_events(tag, es)
-          end
         }
       rescue ForShutdown
       rescue => e
